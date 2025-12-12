@@ -12,14 +12,18 @@ class VendorProfileResponse(BaseModel):
     state: Optional[str]
     zip_code: Optional[str]
     website: Optional[str]
-    categories: Optional[List[str]]
-    service_areas: Optional[List[str]]
+
+    # FIXED → Provide default empty lists
+    categories: Optional[List[str]] = []
+    service_areas: Optional[List[str]] = []
+
     year_established: Optional[str]
     team_size: Optional[str]
     license_number: Optional[str]
     insurance_provider: Optional[str]
     tax_id: Optional[str]
     description: Optional[str]
+
     status: str
 
     class Config:
@@ -36,8 +40,11 @@ class VendorProfileUpdateRequest(BaseModel):
     state: Optional[str]
     zip_code: Optional[str]
     website: Optional[str]
-    categories: Optional[List[str]]
-    service_areas: Optional[List[str]]
+
+    # Make them optional lists for updates
+    categories: Optional[List[str]] = []
+    service_areas: Optional[List[str]] = []
+
     year_established: Optional[str]
     team_size: Optional[str]
     license_number: Optional[str]
