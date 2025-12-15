@@ -9,5 +9,5 @@ class EventCategory(BaseModel):
     event_id = Column(Integer, ForeignKey("events.id"))
     category_id = Column(Integer, ForeignKey("categories.id"))
 
-
-    # category = relationship("Category", back_populates="events")
+    event = relationship("Event", back_populates="categories")
+    category = relationship("Category", back_populates="events")

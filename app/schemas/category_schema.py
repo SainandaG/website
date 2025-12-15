@@ -3,34 +3,32 @@ from typing import Optional
 from datetime import datetime
 
 
-class CategoryBase(BaseModel):
+class CategoryCreate(BaseModel):
     name: str
-    code: str
-    description: Optional[str] = None
     icon: Optional[str] = None
-    color: Optional[str] = "purple"
-
-
-class CategoryCreate(CategoryBase):
-    pass
+    description: Optional[str] = None
 
 
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
-    description: Optional[str] = None
     icon: Optional[str] = None
-    color: Optional[str] = None
+    description: Optional[str] = None
+    inactive: Optional[bool] = None   # optional update
 
 
-class CategoryResponse(CategoryBase):
+class CategoryResponse(BaseModel):
     id: int
-    events_count: Optional[int] = 0
-    created_at: datetime
-    
+    name: str
+    icon: Optional[str]
+    description: Optional[str]
+
+    # BaseModel inherited fields
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
+    deleted_at: Optional[datetime]
+    created_by: Optional[str]
+    modified_by: Optional[str]
+    inactive: bool
+
     class Config:
         from_attributes = True
-
-
-class CategoryWithStats(CategoryResponse):
-    events_count: int
-    event_types_count: int
