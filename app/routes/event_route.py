@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Optional
 from app.database import get_db
-from app.schemas.event_schema import EventCreate, EventUpdate
+from app.schemas.event_schema import EventCreateSchema, EventUpdateSchema
 from app.services.event_service import EventService
 from app.dependencies import get_current_active_user, PermissionChecker
 from app.models.user_m import User
@@ -13,15 +13,27 @@ router = APIRouter(prefix="/events", tags=["Events"])
 @router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(PermissionChecker(["event.create"]))]
+    dependencies=[Depends(PermissionChecker(["event.create"]))],
 )
 async def create_event(
-    event: EventCreate,
+    event: EventCreateSchema,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
-    """Create new event"""
     return EventService.create_event(db, event, current_user)
+
+
+@router.put(
+    "/{event_id}",
+    dependencies=[Depends(PermissionChecker(["event.update"]))],
+)
+async def update_event(
+    event_id: int,
+    event_update: EventUpdateSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    return EventService.update_event(db, event_id, event_update, current_user)
 
 
 @router.get(
@@ -72,20 +84,6 @@ async def get_event(
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     return event
-
-
-@router.put(
-    "/{event_id}",
-    dependencies=[Depends(PermissionChecker(["event.update"]))]
-)
-async def update_event(
-    event_id: int,
-    event_update: EventUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """Update event"""
-    return EventService.update_event(db, event_id, event_update, current_user)
 
 
 @router.delete(

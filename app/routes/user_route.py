@@ -28,10 +28,26 @@ async def create_user(
     if db_user:
         raise HTTPException(status_code=400, detail="Email already exists")
     
+    # Validate branch_id if provided
+    branch_id = user.branch_id
+    if branch_id:
+        from app.models.branch_m import Branch
+        branch = db.query(Branch).filter(Branch.id == branch_id).first()
+        if not branch:
+            raise HTTPException(status_code=400, detail=f"Branch with ID {branch_id} does not exist")
+    
+    # Validate department_id if provided
+    department_id = user.department_id
+    if department_id:
+        from app.models.department_m import Department
+        department = db.query(Department).filter(Department.id == department_id).first()
+        if not department:
+            raise HTTPException(status_code=400, detail=f"Department with ID {department_id} does not exist")
+    
     new_user = User(
         organization_id=current_user.organization_id,
-        branch_id=user.branch_id,
-        department_id=user.department_id,
+        branch_id=branch_id,
+        department_id=department_id,
         role_id=user.role_id,
         username=user.username,
         email=user.email,

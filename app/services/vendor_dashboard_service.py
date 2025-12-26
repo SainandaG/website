@@ -82,19 +82,24 @@ def get_vendor_dashboard(db: Session, vendor_id: int) -> VendorDashboardResponse
     # -----------------------------
     # 3️⃣ Bid Categories (Count by Category)
     # -----------------------------
+    from app.models.event_m import Event
+    from app.models.category_m import Category
+    
     category_counts = (
-        db.query(VendorBid.category_id, func.count(VendorBid.id))
+        db.query(Category.name, func.count(VendorBid.id))
+        .join(Event, VendorBid.event_id == Event.id)
+        .join(Category, Event.category_id == Category.id)
         .filter(VendorBid.vendor_id == vendor_id)
-        .group_by(VendorBid.category_id)
+        .group_by(Category.name)
         .all()
     )
 
     bid_categories = [
         CategoryBid(
-            category=f"Category {cat_id or 'N/A'}",
+            category=cat_name or 'N/A',
             count=count
         )
-        for cat_id, count in category_counts
+        for cat_name, count in category_counts
     ]
 
     # -----------------------------

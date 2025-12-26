@@ -1,6 +1,5 @@
-# app/models/vendor_m.py
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Numeric, JSON
 from sqlalchemy.orm import relationship
 from app.models.base_model import BaseModel
 
@@ -10,6 +9,7 @@ class Vendor(BaseModel):
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
 
+    # Basic Info
     company_name = Column(String(255), nullable=False)
     business_type = Column(String(255), nullable=True)
     phone = Column(String(20), nullable=True)
@@ -27,10 +27,25 @@ class Vendor(BaseModel):
     tax_id = Column(String(100), nullable=True)
 
     description = Column(Text, nullable=True)
+    
+    # NEW: Services this vendor can provide (JSON array of service IDs)
+    offered_services = Column(JSON, nullable=False, default=list)
+    # Example: [1, 2, 3, 4, 5, 6] means can provide all 6 services
+    
+    # NEW: Portfolio & Performance
+    portfolio_urls = Column(JSON, nullable=True)  # Array of image/video URLs
+    rating = Column(Numeric(3, 2),nullable=False, default=0.0)  # 0.00 to 5.00
+    total_reviews = Column(Integer,nullable=False, default=0)
+    completed_events = Column(Integer,nullable=False, default=0)
+    
+    # NEW: Service Areas (cities/states they operate in)
+    service_areas = Column(JSON, nullable=True)  # ["Mumbai", "Pune", "Delhi"]
 
+    # Status
     status = Column(String(50), nullable=False, default="pending")
+    # pending, approved, rejected, suspended
 
-    # relationships
+    # Relationships
     user = relationship("User", back_populates="vendor_profile")
 
     categories_link = relationship(
@@ -39,9 +54,10 @@ class Vendor(BaseModel):
         cascade="all, delete-orphan"
     )
 
-    bids = relationship("VendorBid", back_populates="vendor")
+    bids = relationship("VendorBid", back_populates="vendor", foreign_keys="VendorBid.vendor_id")
     orders = relationship("VendorOrder", back_populates="vendor")
     payments = relationship("VendorPayment", back_populates="vendor")
+    notifications = relationship("VendorNotification", back_populates="vendor")
 
 
 # IMPORTANT — Import AFTER class definition

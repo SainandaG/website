@@ -1,19 +1,16 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
-
 class CategoryBase(BaseModel):
-    name: str
-    code: str
+    name: str = Field(..., max_length=100)
+    code: str = Field(..., max_length=50)
     description: Optional[str] = None
     icon: Optional[str] = None
-    color: Optional[str] = "purple"
-
+    color: str = "purple"
 
 class CategoryCreate(CategoryBase):
     pass
-
 
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
@@ -21,16 +18,13 @@ class CategoryUpdate(BaseModel):
     icon: Optional[str] = None
     color: Optional[str] = None
 
-
 class CategoryResponse(CategoryBase):
     id: int
-    events_count: Optional[int] = 0
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
-
 class CategoryWithStats(CategoryResponse):
-    events_count: int
-    event_types_count: int
+    events_count: int = 0
+    event_types_count: int = 0
