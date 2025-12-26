@@ -4,7 +4,7 @@ from app.models.event_m import Event, EventStatus
 from app.models.category_m import Category
 from app.models.event_type_m import EventType
 from app.models.user_m import User
-from app.schemas.event_schema import EventCreate, EventUpdate
+from app.schemas.event_schema import EventCreateSchema, EventUpdateSchema
 from fastapi import HTTPException
 from datetime import datetime
 
@@ -12,7 +12,7 @@ from datetime import datetime
 class EventService:
     
     @staticmethod
-    def create_event(db: Session, event: EventCreate, current_user):
+    def create_event(db: Session, event: EventCreateSchema, current_user):
         """Create new event"""
         new_event = Event(
             **event.dict(),
@@ -43,7 +43,11 @@ class EventService:
             EventType.name.label('event_type_name'),
             User.first_name,
             User.last_name
-        ).join(Category).join(EventType).outerjoin(
+        ).select_from(Event).join(
+            Category, Event.category_id == Category.id
+        ).join(
+            EventType, Event.event_type_id == EventType.id
+        ).outerjoin(
             User, Event.event_manager_id == User.id
         ).filter(
             Event.organization_id == organization_id,
@@ -160,6 +164,22 @@ class EventService:
             if manager:
                 manager_name = f"{manager.first_name} {manager.last_name or ''}".strip()
         
+        # Get required services
+        from app.models.service_m import Service
+        required_services = []
+        if event.required_services:
+            services = db.query(Service).filter(
+                Service.id.in_(event.required_services)
+            ).all()
+            required_services = [
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "code": s.code,
+                    "icon": s.icon
+                } for s in services
+            ]
+        
         return {
             "id": event.id,
             "organizationId": event.organization_id,
@@ -183,12 +203,13 @@ class EventService:
             "status": event.status.value,
             "eventManagerId": event.event_manager_id,
             "managerName": manager_name,
+            "requiredServices": required_services,
             "createdAt": event.created_at,
             "updatedAt": event.updated_at
         }
     
     @staticmethod
-    def update_event(db: Session, event_id: int, event_update: EventUpdate, current_user):
+    def update_event(db: Session, event_id: int, event_update: EventUpdateSchema, current_user):
         """Update event"""
         event = db.query(Event).filter(
             Event.id == event_id,

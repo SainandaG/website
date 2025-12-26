@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     AWS_REGION: str = "ap-south-1"
     S3_BUCKET_NAME: str = ""
 
+    # RAZORPAY SETTINGS
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+
     APP_NAME: str = "Evenation"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True

@@ -1,67 +1,97 @@
+# app/schemas/event_schema.py
+
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
 from decimal import Decimal
+from app.models.event_m import EventStatus, BiddingStatus
 
-
-class EventBase(BaseModel):
-    name: str
+class EventCreateSchema(BaseModel):
+    name: str = Field(..., max_length=255)
     category_id: int
     event_type_id: int
+
     event_date: datetime
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+
     location: Optional[str] = None
     city: Optional[str] = None
+    state: Optional[str] = None
     venue: Optional[str] = None
+
     expected_attendees: Optional[int] = 0
     budget: Optional[Decimal] = None
+
     description: Optional[str] = None
+    special_requirements: Optional[str] = None
+    theme: Optional[str] = None
 
+    # IMPORTANT
+    required_services: List[int]
 
-class EventCreate(EventBase):
-    event_manager_id: Optional[int] = None
-
-
-class EventUpdate(BaseModel):
-    name: Optional[str] = None
-    event_type_id: Optional[int] = None
-    event_date: Optional[datetime] = None
-    location: Optional[str] = None
-    city: Optional[str] = None
-    venue: Optional[str] = None
-    expected_attendees: Optional[int] = None
-    budget: Optional[Decimal] = None
-    description: Optional[str] = None
-    status: Optional[str] = None
-    event_manager_id: Optional[int] = None
-
-
-class EventResponse(EventBase):
-    id: int
-    organization_id: int
-    status: str
-    event_manager_id: Optional[int]
-    
-    # Populated fields
-    category_name: Optional[str] = None
-    event_type_name: Optional[str] = None
-    manager_name: Optional[str] = None
-    
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    
     class Config:
         from_attributes = True
 
+class EventUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    event_date: Optional[datetime] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
 
-class EventListResponse(BaseModel):
-    """For list view with stats"""
+    location: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    venue: Optional[str] = None
+
+    expected_attendees: Optional[int] = None
+    budget: Optional[Decimal] = None
+
+    description: Optional[str] = None
+    special_requirements: Optional[str] = None
+    theme: Optional[str] = None
+
+    required_services: Optional[List[int]] = None
+
+    bidding_status: Optional[BiddingStatus] = None
+    status: Optional[EventStatus] = None
+
+    class Config:
+        from_attributes = True
+
+class EventServiceResponse(BaseModel):
     id: int
     name: str
-    category: str
-    event_type: str
-    event_date: str
-    location: str
-    expected_attendees: int
+    category: Optional[str]
+    eventType: Optional[str]
+
+    eventDate: datetime
+    location: Optional[str]
+    city: Optional[str]
+    state: Optional[str]
+
+    expectedAttendees: int
     budget: Optional[Decimal]
-    manager: Optional[str]
-    status: str
+    theme: Optional[str]
+
+    biddingStatus: BiddingStatus
+    biddingDeadline: Optional[datetime]
+    status: EventStatus
+
+    requiredServices: List[dict]
+
+    class Config:
+        from_attributes = True
+
+class ConsumerEventListSchema(BaseModel):
+    id: int
+    name: str
+    eventDate: str
+    location: Optional[str]
+    budget: Decimal
+    biddingStatus: BiddingStatus
+    bidCount: int
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True

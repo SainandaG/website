@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -7,15 +7,14 @@ from app.utils.jwt_utils import decode_access_token
 from app.models.user_m import User
 from app.models.vendor_m import Vendor
 
-security = HTTPBearer()
+security = OAuth2PasswordBearer(tokenUrl="/api/auth/vendor/token")
 
 
 async def get_current_vendor(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    token: str = Depends(security),
     db: Session = Depends(get_db)
 ) -> Vendor:
 
-    token = credentials.credentials
     payload = decode_access_token(token)
 
     if not payload:

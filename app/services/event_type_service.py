@@ -50,7 +50,11 @@ class EventTypeService:
             EventType,
             Category.name.label('category_name'),
             func.count(Event.id).label('events_count')
-        ).join(Category).outerjoin(Event).filter(
+        ).select_from(EventType).join(
+            Category, EventType.category_id == Category.id
+        ).outerjoin(
+            Event, Event.event_type_id == EventType.id
+        ).filter(
             EventType.inactive == False
         )
         

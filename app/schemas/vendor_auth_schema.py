@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr
 from typing import Annotated
 from datetime import datetime
@@ -20,6 +20,10 @@ class VendorRegisterRequest(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     zip_code: Optional[str] = None
+    
+    # Services & Coverage
+    offered_services: List[int]  # Array of service IDs
+    service_areas: Optional[List[str]] = None  # Cities/states they serve
 
 
 # --------------------------

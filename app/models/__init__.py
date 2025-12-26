@@ -23,6 +23,10 @@ from .vendor_category_m import VendorCategory
 from .vendor_order_m import VendorOrder
 from .event_type_m import EventType
 from .event_manager_profile_m import EventManagerProfile
+from .service_m import Service
+from .vendor_notification_m import VendorNotification
+from .review_m import Review
+from .chat_m import Chat, Message
 # DO NOT IMPORT vendor models here !!
 # They auto-register because routes import them and SQLAlchemy discovers them.
 
@@ -50,5 +54,10 @@ __all__ = [
     "VendorCategory",
     "VendorOrder",
     "EventType",
-    "EventManagerProfile"
+    "EventManagerProfile",
+    "Service",
+    "VendorNotification",
+    "Review",
+    "Chat",
+    "Message"
 ]

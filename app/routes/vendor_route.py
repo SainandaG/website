@@ -66,3 +66,21 @@ def update_my_vendor_profile(
     db.commit()
     db.refresh(vendor)
     return vendor
+
+
+@router.get("/{vendor_id}", response_model=VendorProfileResponse)
+def get_public_vendor_profile(
+    vendor_id: int,
+    db: Session = Depends(get_db),
+    # No auth dependency for public view, or optional/loose auth
+):
+    """
+    Publicly accessible vendor profile details.
+    """
+    vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vendor not found",
+        )
+    return vendor

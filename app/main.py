@@ -6,35 +6,34 @@ from app.config import settings
 # DB
 from app.database import engine, Base
 from app.seeders.seed_data import seed_database
+from app.seeders.service_seeder import seed_services
 from app.seeders.category_event_type_seeder import seed_categories_and_event_types
 # Core Admin Routes
-from app.routes import (
-    auth_route,
-    user_route,
-    organization_route,
-    branch_route,
-    role_route,
-    menu_route,
-    category_route,  # NEW
-    event_type_route,  # NEW
-    event_route,  # NEW
-    event_manager_route  # NEW
+from app.routes import (auth_route,user_route,organization_route,branch_route,role_route,menu_route,category_route,
+    event_type_route, event_route,  event_manager_route,service_route,consumer_event_route,
+    vendor_bidding_route,admin_bid_review_route,consumer_selection_route,
+    review_route, chat_route, payment_route # ADDED NEW ROUTES
 )
-
-
 # Vendor Routes
 from app.routes.vendor_auth_route import router as vendor_auth_router
 from app.routes.vendor_profile_route import router as vendor_profile_router
 from app.routes.vendor_dashboard_route import router as vendor_dashboard_router
+from app.routes.vendor_notification_route import router as vendor_notification_router
+
+from app.routes.vendor_route import router as vendor_general_router
 
 # Admin Bidding Routes (NEW)
 from app.routes.admin_bidding_route import router as admin_bidding_router
+
+# Admin Vendor Management Routes (NEW)
+from app.routes.admin_vendor_route import router as admin_vendor_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
     print("🚀 Application startup: Running seeders...")
     seed_database()
+    seed_services()
     seed_categories_and_event_types()
 
     yield
@@ -73,16 +72,33 @@ app.include_router(menu_route.router, prefix="/api")
 
 app.include_router(category_route.router, prefix="/api")  # NEW
 app.include_router(event_type_route.router, prefix="/api")  # NEW
+app.include_router(service_route.router, prefix="/api")
 app.include_router(event_route.router, prefix="/api")  # NEW
 app.include_router(event_manager_route.router, prefix="/api")  # NEW
 
 # ---- Vendor APIs ----
 app.include_router(vendor_auth_router, prefix="/api")
 app.include_router(vendor_profile_router, prefix="/api")
+app.include_router(vendor_general_router, prefix="/api") # Added vendor_route (general)
 app.include_router(vendor_dashboard_router, prefix="/api")
+app.include_router(vendor_bidding_route.router, prefix="/api")
+app.include_router(vendor_notification_router, prefix="/api")
+
+# ---- Consumer APIs ----
+app.include_router(consumer_event_route.router, prefix="/api")
+app.include_router(consumer_selection_route.router, prefix="/api")
+
+# ---- New Features (Review, Chat, Payment) ----
+app.include_router(review_route.router, prefix="/api")
+app.include_router(chat_route.router, prefix="/api")
+app.include_router(payment_route.router, prefix="/api")
 
 # ---- Admin Bidding APIs ----
 app.include_router(admin_bidding_router, prefix="/api")
+app.include_router(admin_bid_review_route.router, prefix="/api")
+
+# ---- Admin Vendor Management APIs ----
+app.include_router(admin_vendor_router, prefix="/api")
 
 
 # -------------------------
@@ -100,3 +116,20 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "version": settings.APP_VERSION}
+
+
+
+
+
+
+
+
+
+# Use the updated vendor_route.py which might be different from vendor_profile_route
+# Wait, vendor_route.py exists in file list but main.py uses vendor_profile_route.
+# Let's check if vendor_route is used. It seems vendor_profile_route is used.
+# But I modified vendor_route.py (or did I? I modified vendor_route.py earlier).
+# I see `app/routes/vendor_route.py` in file list. And `app/routes/vendor_profile_route.py`.
+# vendor_route.py usually has generic vendor stuff.
+# Let's import vendor_route as well if it's not the same.
+# Actually I modified `vendor_route.py` to add public profile.
