@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useRegisterCommand } from '../../context/CommandRegistryContext';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text, Billboard } from '@react-three/drei';
 import { ArrowLeft, Loader, Database, GitBranch, Binary, BrainCircuit, Play } from 'lucide-react';
@@ -8,14 +9,42 @@ import NodeFormationSimulation from '../Evolution/NodeFormationSimulation';
 import soundSystem from '../../utils/SoundSystem';
 
 // Intelligence Panel Integration - Deep Analysis Feature
-export default function DrillDownView({ connectionId, tableName, onBack }) {
+export default function DrillDownView({ connectionId, tableName, onBack, initialShowSimulation = false }) {
     const [flowData, setFlowData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [hoveredNode, setHoveredNode] = useState(null);
     const [selectedNode, setSelectedNode] = useState(null);
     const [recordData, setRecordData] = useState(null);
-    const [showSimulation, setShowSimulation] = useState(false);
+    const [showSimulation, setShowSimulation] = useState(initialShowSimulation);
+
+    useEffect(() => {
+        if (initialShowSimulation) {
+            console.log(`[DrillDownView] Auto-starting simulation for ${tableName}`);
+            setShowSimulation(true);
+        }
+    }, [initialShowSimulation, tableName]);
+
+    // --- VOICE COMMAND REGISTRATION ---
+    const handleNav = useCallback(({ instruction, target }) => {
+        if (instruction === 'go_back') {
+            console.log("[DrillDownView] Voice Command: Going back to overview");
+            onBack();
+        } else if (instruction === 'drill_down' && (!target || target === tableName)) {
+            console.log("[DrillDownView] Voice Command: Cascaded drill down detected. Triggering simulation.");
+            setShowSimulation(true);
+        }
+    }, [onBack, tableName]);
+
+    const handleEvolution = useCallback(({ instruction }) => {
+        if (instruction === 'simulate_formation') {
+            console.log("[DrillDownView] Voice Command: Simulating formation");
+            setShowSimulation(true);
+        }
+    }, []);
+
+    useRegisterCommand('ui_navigation', handleNav);
+    useRegisterCommand('graph_evolution', handleEvolution);
 
     useEffect(() => {
         if (!connectionId || !tableName) return;

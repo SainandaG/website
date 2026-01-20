@@ -76,29 +76,31 @@ class IntentClassifier:
         else:
             print("[WARNING] GOOGLE_API_KEY not found in environment")
     
-    async def classify(self, text: str, context: Optional[List[str]] = None) -> Dict[str, Any]:
+    async def classify(self, text: str, context: Optional[List[str]] = None, ui_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Classify user text into an intent with extracted parameters.
         
         Args:
             text: The user's voice command text
             context: Optional list of recent commands for context
+            ui_context: Optional current UI context
             
         Returns:
             Classification result with intent, parameters, confidence, and method
         """
-        # Step 1: Try rule-based matching first
+        # Step 1: Try rule-based matching first (fast, but non-contextual)
         rule_result = self._classify_rule_based(text)
         if rule_result:
             return {
                 **rule_result,
                 'confidence': 1.0,
                 'method': 'rule_based',
+                'reasoning': "Matched pre-defined command pattern.",
                 'alternatives': []
             }
         
-        # Step 2: Try LLM classification (Groq or Gemini)
-        llm_result = await self._classify_llm(text, context)
+        # Step 2: Try LLM classification (Groq or Gemini) - Now context-aware
+        llm_result = await self._classify_llm(text, context, ui_context)
         if llm_result:
             return llm_result
         
@@ -131,13 +133,14 @@ class IntentClassifier:
         result = self.command_registry.match_phrase(text)
         return result
     
-    async def _classify_llm(self, text: str, context: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+    async def _classify_llm(self, text: str, context: Optional[List[str]] = None, ui_context: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """
         LLM-based classification using Groq or Gemini.
         
         Args:
             text: User input text
             context: Recent command context
+            ui_context: Current UI context
             
         Returns:
             Classification result or None
@@ -145,7 +148,7 @@ class IntentClassifier:
         # Try Groq first (faster)
         if self.groq_client:
             try:
-                result = await self._classify_groq(text, context)
+                result = await self._classify_groq(text, context, ui_context)
                 if result:
                     return result
             except Exception as e:
@@ -154,7 +157,7 @@ class IntentClassifier:
         # Fallback to Gemini
         if self.gemini_model:
             try:
-                result = await self._classify_gemini(text, context)
+                result = await self._classify_gemini(text, context, ui_context)
                 if result:
                     return result
             except Exception as e:
@@ -162,22 +165,22 @@ class IntentClassifier:
         
         return None
     
-    async def _classify_groq(self, text: str, context: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+    async def _classify_groq(self, text: str, context: Optional[List[str]] = None, ui_context: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Classify using Groq LLM."""
         if self.groq_client is None:
             return None
         
-        prompt = self._build_llm_prompt(text, context)
+        prompt = self._build_llm_prompt(text, context, ui_context)
         
         try:
             response = await self.groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="llama-3-70b-8192",
                 messages=[
-                    {"role": "system", "content": "You are an intent classifier for a database visualization platform. Respond ONLY with valid JSON."},
+                    {"role": "system", "content": "You are an intelligent intent classifier for a database visualization platform. You understand UI context and provide reasoning for your decisions. Respond ONLY with valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,
-                max_tokens=200
+                max_tokens=300
             )
             
             content = response.choices[0].message.content.strip()
@@ -194,6 +197,7 @@ class IntentClassifier:
                 'action': self.command_registry.get_action_for_intent(result.get('intent', '')),
                 'parameters': result.get('parameters', {}),
                 'confidence': result.get('confidence', 0.7),
+                'reasoning': result.get('reasoning', ''),
                 'method': 'groq_llm',
                 'alternatives': result.get('alternatives', [])
             }
@@ -201,12 +205,12 @@ class IntentClassifier:
             print(f"[ERROR] Groq classification internal error: {e}")
             return None
     
-    async def _classify_gemini(self, text: str, context: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+    async def _classify_gemini(self, text: str, context: Optional[List[str]] = None, ui_context: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """Classify using Gemini LLM."""
         if not self.gemini_model:
             return None
         
-        prompt = self._build_llm_prompt(text, context)
+        prompt = self._build_llm_prompt(text, context, ui_context)
         
         try:
             response = await self.gemini_model.generate_content_async(prompt)
@@ -225,6 +229,7 @@ class IntentClassifier:
                 'action': self.command_registry.get_action_for_intent(result.get('intent', '')),
                 'parameters': result.get('parameters', {}),
                 'confidence': result.get('confidence', 0.7),
+                'reasoning': result.get('reasoning', ''),
                 'method': 'gemini_llm',
                 'alternatives': result.get('alternatives', [])
             }
@@ -233,7 +238,7 @@ class IntentClassifier:
             print(f"[ERROR] Gemini classification error: {e}")
             return None
     
-    def _build_llm_prompt(self, text: str, context: Optional[List[str]] = None) -> str:
+    def _build_llm_prompt(self, text: str, context: Optional[List[str]] = None, ui_context: Optional[Dict[str, Any]] = None) -> str:
         """Build the LLM prompt for intent classification."""
         # Get available commands
         commands = self.command_registry.get_all_commands()
@@ -246,28 +251,60 @@ class IntentClassifier:
         context_str = ""
         if context:
             context_str = f"\n\nRecent commands:\n" + "\n".join([f"- {c}" for c in context[-3:]])
+            
+        ui_context_str = ""
+        available_tables_str = ""
+        system_telemetry_str = ""
+        if ui_context:
+            ui_context_str = f"\n\nCurrent UI State:\n" + "\n".join([f"- {k}: {v}" for k, v in ui_context.items() if k not in ['availableTables', 'databaseMetrics', 'neuralCoreStats']])
+            
+            if 'availableTables' in ui_context:
+                available_tables_str = f"\n\nACTUAL DATABASE TABLES:\n" + ", ".join(ui_context['availableTables'])
+            
+            if 'databaseMetrics' in ui_context or 'neuralCoreStats' in ui_context:
+                metrics = ui_context.get('databaseMetrics', {})
+                stats = ui_context.get('neuralCoreStats', {})
+                system_telemetry_str = f"""
+SYSTEM TELEMETRY (Real-time):
+- Health Score: {metrics.get('health', {}).get('score', 'N/A')}% ({metrics.get('health', {}).get('state', 'Unknown')})
+- Anomalies Detected: {len(metrics.get('anomalies', []))}
+- Neural Core Growth: {stats.get('gravity', '1.0x')}
+- Optimization Status: {stats.get('optimization', 'IDLE')}
+- Traffic Load: {metrics.get('tps', 0)} Transactions/sec
+"""
         
-        prompt = f"""Classify the following voice command into one of the available intents.
+        prompt = f"""You are a specialized intent classifier for the "Living Data Intelligence" platform.
+Your job is to map user natural language into technical intents.
 
-Available Intents:
-{command_list}
+Available Intents and their purposes:
+{command_list}{available_tables_str}{system_telemetry_str}
 
-User Command: "{text}"{context_str}
+AUTONOMOUS DOMAIN ADAPTATION & PROACTIVE INTELLIGENCE:
+1. Analyze the ACTUAL DATABASE TABLES and SYSTEM TELEMETRY listed above.
+2. Identify the likely industry or domain of this database (e.g., Healthcare, E-commerce, Finance, Logistics).
+3. Act as a proactive specialist in that domain. If a user asks a vague question, map it to the most valuable Intent for that domain.
+4. If a user mentions a concept like "audit", "trace", or "track", use the "trace_lineage" intent on the most central table (e.g., 'transactions' or 'orders').
+5. DATA SONIFICATION: If the user mentions "listening", "sound", "audio", or "sonify", use the "toggle_sonification" intent. This is a v2.0 feature.
+6. NEURAL OPTIMIZATION: If the user mentions "cleanup", "organize", or "optimize", use the "apply_clustering" intent.
 
-Respond with ONLY a JSON object in this exact format:
+Important Logic Rules:
+1. NO UNKNOWN POLICY: Avoid returning the "unknown" intent if there is ANY reasonable mapping to an available intent. Use "Domain Mapping" to bridge the gap.
+2. STRICT TABLE CONSTRAINT: When using "drill_down", "zoom_cluster", or "trace_lineage", you MUST ONLY use table names from the "ACTUAL DATABASE TABLES" list.
+3. NAVIGATION OVER STATUS: If the command includes navigation verbs like "zoom", "go to", "find", or "show me", PRIORITIZE table matching (highlight_node or zoom_cluster).
+4. STRICT TABLE VALIDATION: You MUST ONLY use values from the "ACTUAL DATABASE TABLES" list for table parameters. DO NOT hallucinate tables based on the domain (e.g., do not use "dresses" unless it is in the list). If a user mentions a concept not in the table list, map it to the most relevant EXISTENT table or use the "unknown" intent if no mapping is possible.
+5. REASONING: Your "reasoning" field should explain how you used the Neural Core (telemetry and tables) to arrive at the decision.
+
+User Command: "{text}"{context_str}{ui_context_str}
+
+Respond with ONLY a JSON object:
 {{
   "intent": "intent_name",
+  "domain_detected": "The industry/domain you identified",
   "parameters": {{"param_name": "value"}},
   "confidence": 0.95,
-  "alternatives": ["alternative_intent1", "alternative_intent2"]
+  "reasoning": "Mention the domain you detected and why you mapped the command to this intent. E.g., 'Identified Finance domain. User asked for audit logs which I mapped to drill_down transactions.'",
+  "alternatives": ["alternative1"]
 }}
-
-Rules:
-1. Choose the most appropriate intent from the available list
-2. Extract any parameters mentioned (e.g., table names, cluster names)
-3. Set confidence between 0.0 and 1.0
-4. Provide 1-2 alternative intents if unsure
-5. Use "unknown" intent if no good match exists
 """
         return prompt
     

@@ -9,15 +9,16 @@ export const agentService = {
     /**
      * Process voice command text and classify intent (T0)
      * @param {string} text - The transcribed voice command
+     * @param {Object} uiContext - Current UI context (view, table, etc.)
      * @param {Array<string>} context - Recent command context
      * @returns {Promise<Object>} - Classification result
      */
-    async processIntent(text, context = []) {
+    async processIntent(text, uiContext = {}, context = []) {
         try {
             const response = await fetch(`${API_BASE}/intent`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text, context })
+                body: JSON.stringify({ text, ui_context: uiContext, context })
             });
 
             if (!response.ok) {

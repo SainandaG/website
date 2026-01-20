@@ -32,7 +32,7 @@ class T0Agent:
         
         print("[SUCCESS] T0 Agent initialized")
     
-    async def process_voice_input(self, text: str) -> Dict[str, Any]:
+    async def process_voice_input(self, text: str, ui_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Process voice transcription and classify intent.
         
@@ -54,7 +54,11 @@ class T0Agent:
             self.state_manager.update_t0_state(T0State.PROCESSING)
             
             # Classify the intent
-            classification = await self._classify_intent(text)
+            classification = await self._classify_intent(text, ui_context)
+            
+            # Inject connection_id from UI context if available
+            if ui_context and 'connectionId' in ui_context:
+                classification['parameters']['connection_id'] = ui_context['connectionId']
             
             # Validate classification
             if classification['intent'] == 'unknown':
@@ -112,6 +116,7 @@ class T0Agent:
                 'parameters': classification['parameters'],
                 'confidence': classification['confidence'],
                 'method': classification['method'],
+                'reasoning': classification.get('reasoning'),
                 'processing_time_ms': processing_time,
                 'alternatives': classification.get('alternatives', [])
             }
@@ -130,12 +135,13 @@ class T0Agent:
                 'text': text
             }
     
-    async def _classify_intent(self, text: str) -> Dict[str, Any]:
+    async def _classify_intent(self, text: str, ui_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Classify user intent using the intent classifier.
         
         Args:
             text: User input text
+            ui_context: Current UI context
             
         Returns:
             Classification result
@@ -144,7 +150,7 @@ class T0Agent:
         context = self.context[-3:] if self.context else None
         
         # Classify (this may use LLM, so could be slow)
-        classification = await self.intent_classifier.classify(text, context)
+        classification = await self.intent_classifier.classify(text, context, ui_context)
         
         return classification
     

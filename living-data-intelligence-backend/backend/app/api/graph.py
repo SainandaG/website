@@ -53,12 +53,17 @@ async def get_graph(connection_id: str):
                 except:
                     row_count = 0
                     
-                importance = float(neural_core.gravity_store.get(node.get('name'), 1.0))
-                
                 # 1. Logarithmic Term (N)
                 n_term = math.log10(max(1, row_count + 1))
                 
                 # 2. Centrality Term (C)
+                raw_importance = neural_core.gravity_store.get(node.get('name'), 1.0)
+                if isinstance(raw_importance, str):
+                    importance_map = {"critical": 3.0, "high": 2.2, "medium": 1.5, "low": 0.8}
+                    importance = importance_map.get(raw_importance.lower(), 1.0)
+                else:
+                    importance = float(raw_importance)
+                
                 c_term = importance
                 
                 # 3. Final Glow Value
@@ -73,9 +78,8 @@ async def get_graph(connection_id: str):
                 
                 if cluster:
                     node['cluster'] = cluster
-                    if clustering_method == 'networkx':
-                        new_color = graph_generator.get_cluster_color(cluster, clustering_method)
-                        node['color'] = new_color
+                    new_color = graph_generator.get_cluster_color(cluster, clustering_method)
+                    node['color'] = new_color
                 
                 node.update({
                     'vitality': int(vitality),

@@ -21,6 +21,7 @@ class IntentRequest(BaseModel):
     """Request model for intent processing."""
     text: str = Field(..., description="Voice command text")
     context: Optional[List[str]] = Field(None, description="Recent command context")
+    ui_context: Optional[Dict[str, Any]] = Field(None, description="Current UI context (view, table, etc.)")
 
 
 class IntentResponse(BaseModel):
@@ -34,6 +35,7 @@ class IntentResponse(BaseModel):
     confidence: Optional[float] = None
     method: Optional[str] = None
     processing_time_ms: Optional[int] = None
+    reasoning: Optional[str] = None
     error: Optional[str] = None
     suggestions: List[str] = []
     alternatives: List[str] = []
@@ -84,7 +86,7 @@ async def process_intent(request: IntentRequest):
     """
     try:
         t0 = get_t0_agent()
-        result = await t0.process_voice_input(request.text)
+        result = await t0.process_voice_input(request.text, request.ui_context)
         
         return IntentResponse(**result)
         

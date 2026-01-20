@@ -19,7 +19,36 @@ class DatabaseConnector:
         connection_id = f"conn_{self.connection_counter}"
         self.locks[connection_id] = asyncio.Lock()
         
+        
         db_type = config['db_type'].lower()
+        host = config.get('host', '').lower()
+        
+        with open("connection_debug.log", "a") as f:
+            f.write(f"\n--- {time.ctime()} ---\n")
+            f.write(f"Incoming Host: {host}, DB Type: {db_type}\n")
+        
+        # Auto-detect mock mode: if host is 'mock', use mock database regardless of db_type
+        if host == 'mock':
+            db_type = 'mock'
+            print(f"🎭 Mock mode auto-detected (host='mock')")
+            
+        # Optimization: Neon pooler endpoints are often much slower/unstable than direct ones
+        # and Neon ALWAYS requires SSL.
+        if 'neon.tech' in host:
+            if '-pooler' in host:
+                new_host = host.replace('-pooler', '')
+                config['host'] = new_host
+                with open("connection_debug.log", "a") as f:
+                    f.write(f"AUTO-FIX: Stripped -pooler. New Host: {new_host}\n")
+                print(f"🚀 Optimized Neon connection: Stripped -pooler suffix ({host} -> {new_host})")
+            
+            # Force db_type to neon for SSL requirement
+            if db_type != 'neon':
+                db_type = 'neon'
+                config['db_type'] = 'neon'
+                with open("connection_debug.log", "a") as f:
+                    f.write(f"AUTO-FIX: Forced Neon DB type for SSL.\n")
+                print(f"🔒 Forced Neon SSL mode (sslmode=require) for {config['host']}")
         
         try:
             # Enforce application-level timeout
@@ -35,7 +64,7 @@ class DatabaseConnector:
                 else:
                     raise ValueError(f"Unsupported database type: {db_type}")
 
-            client = await asyncio.wait_for(_connect_wrapper(), timeout=15.0)
+            client = await asyncio.wait_for(_connect_wrapper(), timeout=120.0)
             
             self.connections[connection_id] = {
                 'id': connection_id,
@@ -47,14 +76,28 @@ class DatabaseConnector:
                     'database': config['database']
                 }
             }
-            # Background the schema analysis to prevent connection timeouts
-            from app.services.schema_analyzer import schema_analyzer
-            asyncio.create_task(schema_analyzer.analyze_schema(connection_id))
             
             duration = time.perf_counter() - start_time
             print(f"DONE: Connected to {db_type} database: {config['database']} (in {duration:.3f}s)")
+            
+            # CRITICAL: Background the schema analysis AFTER storing connection but BEFORE returning
+            # This ensures the API responds immediately
+            async def _background_schema_analysis():
+                try:
+                    from app.services.schema_analyzer import schema_analyzer
+                    await schema_analyzer.analyze_schema(connection_id)
+                except Exception as e:
+                    print(f"⚠️ Background schema analysis failed for {connection_id}: {e}")
+            
+            asyncio.create_task(_background_schema_analysis())
+            
             return {'id': connection_id, 'type': db_type}
             
+        except asyncio.TimeoutError:
+            duration = time.perf_counter() - start_time
+            error_msg = f"Connection timeout after {duration:.1f}s. Database may be sleeping/paused (common with Neon free tier). Please wake it up in your cloud console or try again in 30 seconds."
+            print(f"FAIL: {error_msg}")
+            raise TimeoutError(error_msg)
         except Exception as e:
             duration = time.perf_counter() - start_time
             print(f"FAIL: Failed to connect to {db_type} after {duration:.3f}s: {str(e)}")
@@ -69,16 +112,13 @@ class DatabaseConnector:
             database=config['database'],
             user=config['username'],
             password=config['password'],
-            connect_timeout=10, # 10 second timeout
+            connect_timeout=60, # Increased for high latency cloud databases
             sslmode='require' if config.get('db_type', '').lower() in ['neon', 'neon_db'] else 'prefer'
         )
         
-        # Test connection
-        conn = connection_pool.getconn()
-        cursor = conn.cursor()
-        cursor.execute('SELECT NOW()')
-        cursor.close()
-        connection_pool.putconn(conn)
+        # Connection pool creation already validates connectivity
+        # No need for additional test query that can cause timeouts
+        print(f"✅ PostgreSQL connection pool created successfully")
         
         return connection_pool
 

@@ -6,6 +6,8 @@
             "phrases": [
                 "highlight {table_name}",
                 "focus on {table_name}",
+                "zoom {table_name}",
+                "zoom to {table_name}",
                 "show me {table_name}",
                 "find {table_name}",
                 "center on {table_name}",
@@ -225,6 +227,194 @@
                 "exit evolution mode"
             ],
             "description": "Stops the evolution playback and returns to current state"
+        },
+        {
+            "id": "drill_down",
+            "phrases": [
+                "drill down {table_name}",
+                "inspect table {table_name}",
+                "open detail for {table_name}",
+                "show data for {table_name}",
+                "analyze {table_name}",
+                "view records for {table_name}",
+                "go deep into {table_name}"
+            ],
+            "intent": "drill_down",
+            "action": "ui.drill_down",
+            "parameters": {
+                "table_name": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Name of the table to drill down into"
+                }
+            },
+            "examples": [
+                "drill down users",
+                "inspect table payments",
+                "open detail for orders"
+            ],
+            "description": "Navigates to the detailed drill-down view of a specific table"
+        },
+        {
+            "id": "simulate_formation",
+            "phrases": [
+                "simulate node formation",
+                "run formation simulation",
+                "show how nodes form",
+                "start structure simulation",
+                "simulate formation",
+                "how is database built"
+            ],
+            "intent": "simulate_formation",
+            "action": "graph.simulate_formation",
+            "parameters": {
+                "table_name": {
+                    "type": "string",
+                    "required": false,
+                    "description": "Optional specific table to simulate"
+                }
+            },
+            "examples": [
+                "simulate node formation",
+                "run formation simulation for users"
+            ],
+            "description": "Triggers the 3D node formation simulation sequence"
+        },
+        {
+            "id": "system_report",
+            "phrases": [
+                "system report",
+                "status update",
+                "how is the database",
+                "check health",
+                "what is the neural core doing",
+                "give me a report",
+                "how healthy is the system"
+            ],
+            "intent": "system_report",
+            "action": "analytics.report",
+            "parameters": {},
+            "examples": [
+                "give me a status update",
+                "how healthy is the database"
+            ],
+            "description": "Provides a comprehensive AI report on system health and neural growth"
+        },
+        {
+            "id": "node_report",
+            "phrases": [
+                "analyze table",
+                "show intelligence for",
+                "explain node",
+                "what's special about",
+                "give me node details",
+                "analyze node",
+                "intelligence for"
+            ],
+            "intent": "node_report",
+            "action": "ui.drill_down",
+            "parameters": {
+                "table_name": {
+                    "type": "string",
+                    "required": true,
+                    "description": "The specific table to analyze"
+                }
+            },
+            "examples": [
+                "analyze table users",
+                "intelligence for transactions"
+            ],
+            "description": "Navigates to a specific node's drill-down view and triggers AI analysis"
+        },
+        {
+            "id": "trace_lineage",
+            "phrases": [
+                "trace lineage for {table_name}",
+                "trace lineage {table_name}",
+                "show dependencies for {table_name}",
+                "what affects {table_name}",
+                "show data lineage for {table_name}",
+                "where does data go from {table_name}",
+                "upstream and downstream of {table_name}"
+            ],
+            "intent": "trace_lineage",
+            "action": "graph.trace_lineage",
+            "parameters": {
+                "table_name": {
+                    "type": "string",
+                    "required": true,
+                    "description": "The table to trace lineage from"
+                },
+                "hops": {
+                    "type": "integer",
+                    "required": false,
+                    "default": 2,
+                    "description": "Number of hops to trace"
+                }
+            },
+            "examples": [
+                "trace lineage for users",
+                "what affects products"
+            ],
+            "description": "Triggers a K-hop traversal to show data dependencies across the graph"
+        },
+        {
+            "id": "sonify_data",
+            "phrases": [
+                "sonify data",
+                "start sonification",
+                "listen to database",
+                "turn metrics into sound",
+                "play data audio",
+                "stop sonification",
+                "mute audio"
+            ],
+            "intent": "toggle_sonification",
+            "action": "ui.sonify",
+            "parameters": {
+                "active": {
+                    "type": "boolean",
+                    "required": false,
+                    "description": "Whether to turn sonification on or off"
+                }
+            },
+            "examples": [
+                "sonify the current metrics",
+                "stop data sonification"
+            ],
+            "description": "Converts real-time database metrics into an immersive soundscape"
+        },
+        {
+            "id": "optimize_layout",
+            "phrases": [
+                "optimize layout",
+                "run neural optimization",
+                "organize graph",
+                "clean up nodes",
+                "balance gravity"
+            ],
+            "intent": "apply_clustering",
+            "action": "analytics.optimize",
+            "parameters": {},
+            "examples": [
+                "run neural optimization",
+                "clean up the graph nodes"
+            ],
+            "description": "Uses AI to optimize the graph layout for better readability"
+        },
+        {
+            "id": "domain_dynamic_action",
+            "phrases": [],
+            "intent": "domain_dynamic",
+            "action": "ui.drill_down",
+            "parameters": {
+                "concept": {
+                    "type": "string",
+                    "required": true,
+                    "description": "The domain concept detected by AI"
+                }
+            },
+            "description": "DYNAMIC TEMPLATE: AI maps domain-specific words (like 'audit') to standard intents (like 'drill_down') on the fly"
         }
     ],
     "metadata": {

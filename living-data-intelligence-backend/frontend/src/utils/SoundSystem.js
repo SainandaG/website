@@ -80,6 +80,46 @@ class SoundSystem {
         }
     }
 
+    /**
+     * Map neural metrics to audio oscillation (Sonification)
+     * Gravity -> Frequency (Pitch)
+     * Entropy -> LFO Modulation (Static/Distortion)
+     */
+    playMetricOscillation(gravity = 1.0, entropy = 0.5) {
+        if (!this.enabled || !this.ctx) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const lfo = this.ctx.createOscillator();
+        const lfoGain = this.ctx.createGain();
+
+        // Map Gravity (1-5) to frequency (200Hz - 800Hz)
+        const freq = 200 + (gravity * 120);
+        osc.frequency.setValueAtTime(freq, t);
+        osc.type = 'sine';
+
+        // Map Entropy (0-1) to modulation speed and intensity
+        lfo.frequency.value = 5 + (entropy * 50);
+        lfoGain.gain.value = 10 + (entropy * 40);
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.15 * this.volume, t + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+
+        osc.start(t);
+        lfo.start(t);
+        osc.stop(t + 0.5);
+        setTimeout(() => lfo.stop(), 500);
+    }
+
     stop(soundName) {
         if (soundName === 'formationAmbient') {
             // Stop logic handles by the ambient function closure if we stored it, 

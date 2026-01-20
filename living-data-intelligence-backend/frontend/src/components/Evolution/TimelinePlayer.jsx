@@ -13,6 +13,7 @@ const TimelinePlayer = ({ connectionId, onSnapshotUpdate }) => {
     const [loading, setLoading] = useState(true);
 
     const timerRef = useRef(null);
+    const lastUpdateRef = useRef(0);
 
     // Initialize timeline
     useEffect(() => {
@@ -68,22 +69,28 @@ const TimelinePlayer = ({ connectionId, onSnapshotUpdate }) => {
 
         if (isNaN(newDate.getTime())) return;
 
-        setCurrentDate(newDate);
+        // CRITICAL: Clamp to end date to prevent requesting future snapshots
+        const clampedDate = new Date(Math.min(newDate.getTime(), end));
+
+        setCurrentDate(clampedDate);
 
         // Throttle snapshot updates for performance
-        const updateSnapshot = async () => {
-            try {
-                if (!newDate || isNaN(newDate.getTime())) return;
-                const snapshot = await evolutionService.getSnapshot(connectionId, newDate.toISOString());
-                onSnapshotUpdate(snapshot);
-            } catch (err) {
-                console.warn("Snapshot update failed", err);
-            }
-        };
-
-        const timeout = setTimeout(updateSnapshot, 100);
-        return () => clearTimeout(timeout);
+        // FIX: Replaced debounce (setTimeout) with Throttle to ensure updates happen DURING playback
+        const now = Date.now();
+        if (!lastUpdateRef.current || now - lastUpdateRef.current > 150) { // Update every 150ms
+            lastUpdateRef.current = now;
+            updateSnapshot(clampedDate);
+        }
     }, [progress, timeline, connectionId]);
+
+    const updateSnapshot = async (targetDate) => {
+        try {
+            const snapshot = await evolutionService.getSnapshot(connectionId, targetDate.toISOString());
+            onSnapshotUpdate(snapshot);
+        } catch (err) {
+            console.warn("Snapshot update failed", err);
+        }
+    };
 
     if (loading) return null;
     if (!timeline) return null;

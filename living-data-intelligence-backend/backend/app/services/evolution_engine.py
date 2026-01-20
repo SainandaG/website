@@ -32,10 +32,14 @@ class EvolutionEngine:
             }
         }
         
-        # Current time as reference
+        # Current time as reference (ensure timezone-aware)
         now = datetime.now()
         if now.tzinfo is None:
             now = now.astimezone()
+        
+        # Ensure target_time is timezone-aware
+        if target_time.tzinfo is None:
+            target_time = target_time.astimezone()
         
         total_vitality = 0
         
@@ -43,6 +47,9 @@ class EvolutionEngine:
             birth_date = table['birth_date']
             
             # Ensure birth_date is timezone-aware
+            if birth_date and isinstance(birth_date, str):
+                birth_date = datetime.fromisoformat(birth_date.replace('Z', '+00:00'))
+            
             if birth_date and birth_date.tzinfo is None:
                 birth_date = birth_date.astimezone()
 
@@ -51,33 +58,58 @@ class EvolutionEngine:
                 continue
                 
             # Calculate interpolated size
-            days_active = (target_time - birth_date).days or 1
+            time_since_birth = (target_time - birth_date)
+            days_active = time_since_birth.days + (time_since_birth.seconds / 86400)
+            days_active = max(0.01, days_active)
             
-            # Interpolated row count
-            estimated_count = min(table['current_size'], int(table['growth_velocity'] * days_active))
+            # Mathematical Growth Modeling (Logistic-style or Linear with Noise)
+            # N(t) = N_max * (t / t_total) ^ alpha
+            total_history_days = max(1, (now - birth_date).days)
+            growth_progress = min(1.0, days_active / total_history_days)
+            
+            estimated_count = int(table['current_size'] * (growth_progress ** 1.2)) # Slight acceleration
+            estimated_count = min(table['current_size'], estimated_count)
             estimated_count = max(1, estimated_count)
             
+            # --- TIME INTELLIGENCE: AGE FACTOR ---
+            # 1.0 = Brand new (Bright), 0.2 = Very old (Dim)
+            # We treat nodes born within the last 10% of the CURRENT timeline as "New"
+            age_days = max(0, (target_time - birth_date).days)
+            age_factor = max(0.2, 1.0 - (age_days / 180)) # Becomes "dim" over 6 months
+            
+            # Importance mapping
+            importance_str = str(table.get('importance', 'low')).lower()
+            importance_map = {
+                "critical": 3.0,
+                "high": 2.2,
+                "medium": 1.5,
+                "low": 0.8
+            }
+            importance_val = importance_map.get(importance_str, 1.0)
+            
             # --- ML Analysis Simulation for Evolution ---
-            # NodeGlow(v) = alpha * log(N + 1) + beta * C
-            # Vitality = alpha * log(N+1) + importance
+            # Ensure estimated_count is at least 1 for math
+            safe_count = max(1, estimated_count)
+            n_term = math.log10(safe_count + 1)
             
-            n_term = math.log10(max(1, estimated_count + 1))
-            importance = float(table.get('importance_score', 1.5) if isinstance(table, dict) else 1.5)
-            
-            # Replicating the logic from graph.py
-            node_glow = (0.8 * n_term) + (0.6 * importance)
-            vitality = min(100, (n_term * 20) + (importance * 5))
+            node_glow = (0.8 * n_term * age_factor) + (0.6 * importance_val)
+            vitality = min(100, (n_term * 20) + (importance_val * 5))
             
             total_vitality += vitality
+            
+            # Safe relative size
+            real_current_size = max(1, table.get('current_size', 1))
+            relative_size = min(1.0, estimated_count / real_current_size)
             
             snapshot["tables"].append({
                 "name": table['table_name'],
                 "row_count": estimated_count,
-                "is_new": (target_time - birth_date).days < 7,
-                "relative_size": estimated_count / table['current_size'] if table['current_size'] > 0 else 0,
+                "is_new": age_days < 7,
+                "age_factor": round(age_factor, 2),
+                "relative_size": round(relative_size, 3),
                 "vitality": int(vitality),
                 "node_glow": round(node_glow, 2),
-                "importance": importance
+                "importance": importance_val
             })
             
         # Filter milestones up to this point

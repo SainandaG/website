@@ -43,7 +43,6 @@ async def search_table_records(connection_id: str, table_name: str, column: str,
         raise HTTPException(status_code=500, detail=result['error'])
     
     return result
-    return result
 
 @router.get("/drilldown/clustered-records/{connection_id}/{table_name}/{column}")
 async def get_clustered_records(connection_id: str, table_name: str, column: str):

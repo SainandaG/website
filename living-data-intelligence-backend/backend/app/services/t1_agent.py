@@ -36,8 +36,14 @@ class T1Agent:
             'analytics.anomaly': self._handle_run_anomaly,
             'analytics.cluster': self._handle_apply_clustering,
             'ui.show_schema': self._handle_show_schema,
+            'ui.drill_down': self._handle_drill_down,
             'graph.start_evolution': self._handle_start_evolution,
             'graph.stop_evolution': self._handle_stop_evolution,
+            'graph.simulate_formation': self._handle_simulate_formation,
+            'graph.trace_lineage': self._handle_trace_lineage,
+            'analytics.report': self._handle_system_report,
+            'ui.sonify': self._handle_toggle_sonification,
+            'analytics.optimize': self._handle_apply_clustering,
         }
         
         print("✅ T1 Agent initialized")
@@ -258,6 +264,56 @@ class T1Agent:
             'message': "Showing schema view"
         }
     
+    async def _handle_drill_down(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle drill down action."""
+        table_name = params.get('table_name')
+        if not table_name:
+            raise ValueError("Missing table_name parameter")
+            
+        await asyncio.sleep(0.1)
+        
+        return {
+            'action_type': 'ui_navigation',
+            'instruction': 'drill_down',
+            'target': table_name,
+            'message': f"Drilling down into {table_name}"
+        }
+    
+    async def _handle_simulate_formation(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle node formation simulation action."""
+        table_name = params.get('table_name')
+        
+        await asyncio.sleep(0.1)
+        
+        return {
+            'action_type': 'graph_evolution',
+            'instruction': 'simulate_formation',
+            'target': table_name,
+            'message': f"Starting node formation simulation {'for ' + table_name if table_name else ''}"
+        }
+    
+    async def _handle_system_report(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle system report action."""
+        await asyncio.sleep(0.1)
+        
+        return {
+            'action_type': 'analytics',
+            'instruction': 'system_report',
+            'message': "Generating comprehensive system report..."
+        }
+    
+    async def _handle_toggle_sonification(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle data sonification toggle."""
+        active = params.get('active', True)
+        await asyncio.sleep(0.05)
+        
+        return {
+            'action_type': 'ui_audio',
+            'instruction': 'toggle_sonification',
+            'target': 'active' if active else 'inactive',
+            'message': f"Data sonification {'activated' if active else 'deactivated'}"
+        }
+    
     # ============ UTILITY METHODS ============
     
     def register_action_handler(
@@ -295,6 +351,35 @@ class T1Agent:
             'state': self.state_manager.t1_state.value,
             'available_actions': len(self.action_handlers)
         }
+    
+    async def _handle_trace_lineage(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle data lineage tracing command"""
+        table_name = parameters.get('table_name')
+        hops = parameters.get('hops', 2)
+        connection_id = parameters.get('connection_id')
+        
+        if not table_name:
+            return {'success': False, 'error': "No table name specified for lineage trace"}
+            
+        if not connection_id:
+            return {'success': False, 'error': "No active database connection found for lineage trace"}
+            
+        from app.services.graph_generator import graph_generator
+        try:
+            lineage = await graph_generator.get_k_hop_lineage(connection_id, table_name, hops)
+            
+            return {
+                'success': True,
+                'action_type': 'graph_trace_lineage',
+                'instruction': 'trace_lineage',
+                'target': table_name,
+                'parameters': {
+                    'lineage_nodes': lineage['lineage_nodes'],
+                    'hops': hops
+                }
+            }
+        except Exception as e:
+            return {'success': False, 'error': f"Lineage trace failed: {str(e)}"}
     
     def __repr__(self) -> str:
         return f"<T1Agent state={self.state_manager.t1_state.value}>"

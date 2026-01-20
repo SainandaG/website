@@ -38,9 +38,9 @@ const ConnectionModal = ({ onClose }) => {
         // Abort controller for timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
-            console.warn('⏱️ Connection timeout reached (60s). Aborting request.');
+            console.warn('⏱️ Connection timeout reached (120s). Aborting request.');
             controller.abort();
-        }, 60000);
+        }, 120000);
 
         try {
             // Ensure port is an integer

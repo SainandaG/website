@@ -4,21 +4,16 @@ import { OrbitControls, Stars, Float, Text, ContactShadows, Line } from '@react-
 import { motion, AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
 import soundSystem from '../../utils/SoundSystem';
+import { agentService } from '../../services/agentService';
+import { SeededRNG, getHash } from '../../utils/mathUtils';
 
-// Helper to get deterministic random from string
-const getHash = (str) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return Math.abs(hash);
-};
-
-function FormationParticles({ count = 3000, targetRadius = 5, entropy = 0.5, gravity = 1.0, vitality = 50, topology = 'NUCLEUS' }) {
+function FormationParticles({ count = 3000, targetRadius = 5, entropy = 0.5, gravity = 1.0, vitality = 50, topology = 'NUCLEUS', seedName = 'genesis' }) {
     const points = useRef();
 
-    // Create initial shape based on TOPOLOGY
+    // Create initial shape based on TOPOLOGY using DETERMINISTIC MATH
     const particles = useMemo(() => {
+        const rng = new SeededRNG(seedName); // Initialize with Table Name
+
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
         const phases = new Float32Array(count);
@@ -29,45 +24,22 @@ function FormationParticles({ count = 3000, targetRadius = 5, entropy = 0.5, gra
 
         for (let i = 0; i < count; i++) {
             // Morphological Logic
-            let x, y, z;
-            const r = 20 + Math.random() * 10;
-
-            if (topology === 'HELIX') {
-                const t = (i / count) * Math.PI * 10;
-                const rad = 5 + Math.random() * 2;
-                x = rad * Math.cos(t * 2);
-                z = rad * Math.sin(t * 2);
-                y = (i / count) * 20 - 10;
-            } else if (topology === 'RING') {
-                const u = Math.random() * Math.PI * 2;
-                const v = Math.random() * Math.PI * 2;
-                const R = 8;
-                const tube = 2;
-                x = (R + tube * Math.cos(v)) * Math.cos(u);
-                z = (R + tube * Math.cos(v)) * Math.sin(u);
-                y = tube * Math.sin(v) * 0.5;
-            } else {
-                const theta = Math.random() * Math.PI * 2;
-                const phi = Math.acos(2 * Math.random() - 1);
-                x = targetRadius * Math.sin(phi) * Math.cos(theta);
-                y = targetRadius * Math.sin(phi) * Math.sin(theta);
-                z = targetRadius * Math.cos(phi);
-            }
+            // REFACTOR: All Math.random() replaced with rng.next()
 
             // Init positions
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(2 * Math.random() - 1);
-            const startR = 30 + Math.random() * 10;
+            const theta = rng.next() * Math.PI * 2;
+            const phi = Math.acos(2 * rng.next() - 1);
+            const startR = 30 + rng.next() * 10;
 
             positions[i * 3] = startR * Math.sin(phi) * Math.cos(theta);
             positions[i * 3 + 1] = startR * Math.sin(phi) * Math.sin(theta);
             positions[i * 3 + 2] = startR * Math.cos(phi);
 
-            phases[i] = Math.random() * Math.PI * 2;
+            phases[i] = rng.next() * Math.PI * 2;
 
             // Semantic Coloring
-            const isAnomaly = Math.random() < (entropy * 0.3);
-            const isHighValue = Math.random() < (vitality / 100);
+            const isAnomaly = rng.chance(entropy * 0.3);
+            const isHighValue = rng.chance(vitality / 100);
 
             let pColor = colorBase;
             if (isAnomaly) pColor = colorAnomaly;
@@ -78,9 +50,10 @@ function FormationParticles({ count = 3000, targetRadius = 5, entropy = 0.5, gra
             colors[i * 3 + 2] = pColor.b;
         }
         return { positions, colors, phases };
-    }, [count, entropy, vitality, topology, targetRadius]);
+    }, [count, entropy, vitality, topology, targetRadius, seedName]);
 
     useFrame((state) => {
+        // ... (Animation logic remains mostly efficient using time, but we use captured phases)
         if (!points.current) return;
 
         const time = state.clock.getElapsedTime();
@@ -207,9 +180,6 @@ function SatelliteNode({ position, name, onSelect, isSelected }) {
             {isSelected && (
                 <AgentPacket start={[-position[0], -position[1], -position[2]]} end={[0, 0, 0]} color="#fbbf24" speed={2} />
             )}
-            {!isSelected && (
-                <AgentPacket start={[0, 0, 0]} end={[-position[0], -position[1], -position[2]]} color="#10b981" speed={0.5} />
-            )}
 
             <mesh ref={mesh}>
                 <sphereGeometry args={[1.5, 32, 32]} />
@@ -235,6 +205,59 @@ function SatelliteNode({ position, name, onSelect, isSelected }) {
     );
 }
 
+function AgentTrafficController({ satellites, active, t0Active, t1Active }) {
+    if (!active && !t0Active && !t1Active) return null;
+
+    return (
+        <group>
+            {satellites.map((sat, i) => {
+                // Use deterministic speeds for each satellite based on its ID
+                const sitRng = new SeededRNG(sat.id);
+
+                return (
+                    <group key={`traffic-${sat.id}`}>
+                        {/* T0: Analyzer Agents (Indigo) - Inbound to Core */}
+                        {(active || t0Active) && (
+                            <>
+                                <AgentPacket
+                                    start={sat.position}
+                                    end={[0, 0, 0]}
+                                    color="#6366f1" // Indigo-500
+                                    speed={0.8 + sitRng.next() * 0.5}
+                                />
+                                <AgentPacket
+                                    start={sat.position}
+                                    end={[0, 0, 0]}
+                                    color="#818cf8"
+                                    speed={1.2 + sitRng.next() * 0.5}
+                                />
+                            </>
+                        )}
+
+                        {/* T1: Optimizer Agents (Green) - Outbound from Core */}
+                        {(active || t1Active) && (
+                            <>
+                                <AgentPacket
+                                    start={[0, 0, 0]}
+                                    end={sat.position}
+                                    color="#10b981" // Emerald-500
+                                    speed={1.0 + sitRng.next() * 0.5}
+                                />
+                                <AgentPacket
+                                    start={[0, 0, 0]}
+                                    end={sat.position}
+                                    color="#34d399"
+                                    speed={1.5 + sitRng.next() * 0.5}
+                                />
+                            </>
+                        )}
+                    </group>
+                )
+            })}
+        </group>
+    );
+}
+
 export default function NodeFormationSimulation({ connectionId, tableName, flowData, onExit }) {
     const [metrics, setMetrics] = useState({ gravity: 1.0, entropy: 0.1, vitality: 50, row_count: 0, in_degree: 0, out_degree: 0 });
     const [proofs, setProofs] = useState(null);
@@ -244,6 +267,10 @@ export default function NodeFormationSimulation({ connectionId, tableName, flowD
     const [selectedSatellite, setSelectedSatellite] = useState(null);
     const [aiInsight, setAiInsight] = useState(null);
     const [isInsightLoading, setIsInsightLoading] = useState(false);
+
+    // Agent State for Visualization
+    const [agentState, setAgentState] = useState({ t0_state: 'idle', t1_state: 'idle' });
+    const [simulateAgents, setSimulateAgents] = useState(false); // Demo toggle
 
     useEffect(() => {
         const fetchData = async () => {
@@ -259,9 +286,27 @@ export default function NodeFormationSimulation({ connectionId, tableName, flowD
                 console.error("Simulation data fetch failed", e);
             }
         };
+
+        const fetchAgentState = async () => {
+            // In a real scenario, we'd fetch from backend. 
+            // For this visual simulation, we can also rely on the prop or a separate service call.
+            // We'll trust the simulation toggle for visual drama, but also try to read real state.
+            try {
+                const realState = await agentService.getAgentState();
+                setAgentState(prev => ({ ...prev, ...realState }));
+            } catch (e) {
+                // silent fail
+            }
+        };
+
         fetchData();
+        const interval = setInterval(fetchAgentState, 2000);
         soundSystem.play('formationAmbient');
-        return () => soundSystem.stop('formationAmbient');
+
+        return () => {
+            clearInterval(interval);
+            soundSystem.stop('formationAmbient');
+        };
     }, [connectionId, tableName]);
 
     const [muted, setMuted] = useState(false);
@@ -529,11 +574,36 @@ export default function NodeFormationSimulation({ connectionId, tableName, flowD
                                 isSelected={selectedSatellite === sat.id}
                             />
                         ))}
+
+                        {/* Agent Traffic System */}
+                        <AgentTrafficController
+                            satellites={satellites}
+                            active={simulateAgents}
+                            t0Active={agentState.t0_state !== 'idle'}
+                            t1Active={agentState.t1_state !== 'idle'}
+                        />
+
                     </Float>
 
                     <ContactShadows position={[0, -15, 0]} opacity={0.4} scale={50} blur={2} far={20} />
                     <OrbitControls enableZoom={true} autoRotate autoRotateSpeed={0.2} minDistance={20} maxDistance={100} />
                 </Canvas>
+            </div>
+
+            {/* Agent Traffic Control Toggle */}
+            <div className="absolute top-32 left-8 pointer-events-none">
+                <button
+                    onClick={() => setSimulateAgents(!simulateAgents)}
+                    className={`pointer-events-auto px-4 py-2 rounded-lg border flex items-center gap-2 transition-all backdrop-blur-md mb-2 shadow-lg ${simulateAgents ? 'bg-indigo-500/20 border-indigo-400 text-indigo-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+                >
+                    <span className="text-[10px] font-bold font-mono uppercase tracking-widest">
+                        {simulateAgents ? "Stop Agent Traffic" : "Simulate Agent Swarm"}
+                    </span>
+                    {simulateAgents && <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                    </span>}
+                </button>
             </div>
 
             {/* Scientific HUD - Collapsible */}
@@ -697,10 +767,20 @@ export default function NodeFormationSimulation({ connectionId, tableName, flowD
                                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
                                 <span className="text-[10px] text-slate-300 font-mono uppercase">Pulse = Integrity Scan</span>
                             </div>
+                            <div className="mt-2 pt-2 border-t border-white/10">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                                    <span className="text-[10px] text-indigo-300 font-mono uppercase">Indigo = T0 Analyzer (Inbound)</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                    <span className="text-[10px] text-emerald-300 font-mono uppercase">Green = T1 Optimizer (Outbound)</span>
+                                </div>
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
             </div>
-        </div>
+        </div >
     );
 }

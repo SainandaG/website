@@ -27,10 +27,13 @@ async def get_timeline(connection_id: str):
         if not result:
             result = await temporal_analyzer.analyze_evolution(connection_id)
         return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=f"Connection stale or not found: {str(e)}. Please reconnect.")
     except Exception as e:
         import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Timeline analysis failed: {str(e)}")
+        error_trace = traceback.format_exc()
+        print(error_trace)
+        raise HTTPException(status_code=500, detail=f"Timeline analysis failed: {str(e)}\n{error_trace}")
 
 @router.get("/snapshot/{connection_id}")
 async def get_snapshot(
@@ -42,10 +45,15 @@ async def get_snapshot(
         target_time = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
         snapshot = await evolution_engine.get_snapshot(connection_id, target_time)
         return snapshot
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid timestamp format. Use ISO 8601.")
+    except ValueError as e:
+        error_msg = f"Invalid timestamp or connection: {str(e)}"
+        print(f"[Evolution API] {error_msg}")
+        raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[Evolution API] Snapshot generation failed:\n{error_trace}")
+        raise HTTPException(status_code=500, detail=f"Snapshot generation failed: {str(e)}")
 
 @router.get("/playback/{connection_id}")
 async def get_playback_keyframes(

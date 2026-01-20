@@ -99,7 +99,7 @@ class GraphGenerator:
         nodes.append({
             'id': 'hub',
             'name': 'Neural Core',
-            'group': 0, 'size': core_size, 'color': '#22d3ee',
+            'group': 0, 'size': core_size, 'color': '#10b981',
             'entity': 'core',
             'x': 0, 'y': 0, 'z': 0,
             'target_x': 0, 'target_y': 0, 'target_z': 0, # Core is anchor
@@ -238,6 +238,49 @@ class GraphGenerator:
                     add_edge(t_name, pred['target_id'], 'ai_predicted', pred['confidence'], pred.get('reasoning'))
 
         return {'nodes': nodes, 'edges': edges}
+
+    async def get_k_hop_lineage(self, connection_id: str, table_name: str, hops: int = 2) -> dict:
+        """Trace data lineage up to K-hops using schema relationships"""
+        from app.services.schema_analyzer import schema_analyzer
+        schema_obj = await schema_analyzer.analyze_schema(connection_id)
+        schema = schema_obj.model_dump() if hasattr(schema_obj, 'model_dump') else schema_obj
+        tables = schema.get('tables', [])
+        
+        # 1. Build Adjacency List
+        # Forward = referencing (downstream), Backward = referenced (upstream)
+        adj = {}
+        for t in tables:
+            src = t['name']
+            if src not in adj: adj[src] = []
+            for fk in t.get('foreign_keys', []):
+                tgt = fk.get('referenced_table')
+                if tgt:
+                    if tgt not in adj: adj[tgt] = []
+                    # Bidirectional trace for general lineage
+                    adj[src].append({'to': tgt, 'role': 'upstream'})
+                    adj[tgt].append({'to': src, 'role': 'downstream'})
+
+        # 2. BFS Traversal
+        visited = {table_name}
+        queue = [(table_name, 0)]
+        lineage_nodes = []
+        
+        while queue:
+            current, dist = queue.pop(0)
+            if dist > 0:
+                lineage_nodes.append(current)
+            
+            if dist < hops:
+                for neighbor in adj.get(current, []):
+                    if neighbor['to'] not in visited:
+                        visited.add(neighbor['to'])
+                        queue.append((neighbor['to'], dist + 1))
+                        
+        return {
+            'origin': table_name,
+            'lineage_nodes': lineage_nodes,
+            'max_hops': hops
+        }
 
     def _build_node_dict(self, table: dict, x, y, z, ring: str) -> dict:
         """Helper to build a unified node dictionary"""

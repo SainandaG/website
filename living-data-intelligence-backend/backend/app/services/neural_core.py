@@ -185,20 +185,39 @@ class NeuralCore:
         from app.services.db_connector import db_connector
         print(f"Neural Core: Initiating snapshot save for {connection_id}...")
         
-        # 1. Create table if not exists (Lazy Init)
+        # 1. Create table if not exists (Lazy Init - Dialect Aware)
         try:
-            await db_connector.query(connection_id, """
-                CREATE TABLE IF NOT EXISTS evolution.neural_snapshots (
-                    id SERIAL PRIMARY KEY,
-                    connection_id TEXT NOT NULL,
-                    snapshot_at TIMESTAMPTZ DEFAULT NOW(),
-                    neural_data JSONB,
-                    core_metrics JSONB
-                )
-            """)
-            await db_connector.query(connection_id, "CREATE INDEX IF NOT EXISTS idx_neural_conn ON evolution.neural_snapshots(connection_id)")
+            conn_info = db_connector.get_connection(connection_id)
+            db_type = conn_info['type']
+            
+            if db_type in ['postgresql', 'postgres', 'neon', 'neon_db']:
+                await db_connector.query(connection_id, """
+                    CREATE SCHEMA IF NOT EXISTS evolution;
+                    CREATE TABLE IF NOT EXISTS evolution.neural_snapshots (
+                        id SERIAL PRIMARY KEY,
+                        connection_id TEXT NOT NULL,
+                        snapshot_at TIMESTAMPTZ DEFAULT NOW(),
+                        neural_data JSONB,
+                        core_metrics JSONB
+                    );
+                """)
+                await db_connector.query(connection_id, "CREATE INDEX IF NOT EXISTS idx_neural_conn ON evolution.neural_snapshots(connection_id)")
+            elif db_type == 'mysql':
+                # MySQL doesn't have schemas in the same way, usually it's just the database name.
+                # But if we want to mimic the 'evolution' namespace, we can use a prefix or a separate DB.
+                # For simplicity in this platform, we'll just use a 'neural_snapshots' table.
+                await db_connector.query(connection_id, """
+                    CREATE TABLE IF NOT EXISTS neural_snapshots (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        connection_id VARCHAR(255) NOT NULL,
+                        snapshot_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        neural_data JSON,
+                        core_metrics JSON,
+                        INDEX idx_neural_conn (connection_id)
+                    )
+                """)
         except Exception as e:
-            print(f"FAIL: Failed to init neural_snapshots table in evolution schema: {e}")
+            print(f"FAIL: Failed to init neural_snapshots table: {e}")
             return
 
         # 2. Prepare Data
@@ -239,12 +258,13 @@ class NeuralCore:
 
         # 3. INSERT
         import json
-        sql = "INSERT INTO evolution.neural_snapshots (connection_id, neural_data, core_metrics) VALUES (%s, %s, %s)"
+        table_name = "evolution.neural_snapshots" if db_type != 'mysql' else "neural_snapshots"
+        sql = f"INSERT INTO {table_name} (connection_id, neural_data, core_metrics) VALUES (%s, %s, %s)"
         try:
             await db_connector.query(connection_id, sql, (connection_id, json.dumps(snapshot_data), json.dumps(metrics)))
-            print(f"Neural Core: Snapshot saved for {connection_id} to DB.")
+            print(f"Neural Core: Snapshot saved for {connection_id} to {table_name}.")
         except Exception as e:
-            print(f"FAIL: Failed to save neural snapshot: {e}")
+            print(f"FAIL: Failed to save neural snapshot to {table_name}: {e}")
 
     def get_core_metrics(self) -> Dict[str, Any]:
         """Return the current DETERMINISTIC state of intelligence"""
