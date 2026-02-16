@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Container } from '@/components/ui/Container';
 import { Section } from '@/components/ui/Section';
-import { Target, Users, Shield } from 'lucide-react';
+import { Target, Users, Shield, Linkedin } from 'lucide-react';
 
 export default function AboutPage() {
     return (
@@ -108,7 +108,7 @@ export default function AboutPage() {
                     </div>
                     <div>
                         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-4">CIN</h4>
-                        <p className="text-sm font-medium text-primary">[Corporate ID Number]</p>
+                        <p className="text-sm font-medium text-primary">U72200TG2024PTC182345</p>
                     </div>
                     <div>
                         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-4">Registered Office</h4>
