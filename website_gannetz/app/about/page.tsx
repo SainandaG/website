@@ -80,7 +80,12 @@ export default function AboutPage() {
                 <div className="grid grid-cols-1 md:grid-cols-1 max-w-4xl">
                     <div className="flex flex-col bg-white p-8 rounded-lg border border-border shadow-sm">
                         <div>
-                            <h4 className="text-2xl font-bold text-primary mb-1">Mohan Rao P</h4>
+                            <div className="flex items-center justify-between mb-1">
+                                <h4 className="text-2xl font-bold text-primary">Mohan Rao P</h4>
+                                <a href="https://www.linkedin.com/in/mohan-rao-pachava?utm_source=share_via&utm_content=profile&utm_medium=member_android" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 transition-colors">
+                                    <Linkedin size={20} />
+                                </a>
+                            </div>
                             <p className="text-secondary font-medium mb-1">Founder & Chief Technology Officer</p>
                             <p className="text-foreground/40 text-sm mb-6">Expert in AI Agents, BESS Systems & Automotive Software</p>
                             <p className="text-foreground/70 text-sm leading-relaxed mb-6">

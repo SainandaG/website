@@ -107,7 +107,7 @@ export default function ContactPage() {
                                     <span className="flex items-center gap-3"><Calendar size={20} className="text-primary" /> Schedule Video Call</span>
                                     <ExternalLink size={16} className="text-secondary/40 group-hover:text-primary transition-colors" />
                                 </a>
-                                <a href="#" className="flex items-center justify-between p-5 bg-white rounded-xl border border-border hover:border-primary transition-all text-base font-bold text-secondary group shadow-sm hover:shadow-md">
+                                <a href="https://www.linkedin.com/in/mohan-rao-pachava?utm_source=share_via&utm_content=profile&utm_medium=member_android" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-5 bg-white rounded-xl border border-border hover:border-primary transition-all text-base font-bold text-secondary group shadow-sm hover:shadow-md">
                                     <span className="flex items-center gap-3"><Linkedin size={20} className="text-primary" /> View LinkedIn</span>
                                     <ExternalLink size={16} className="text-secondary/40 group-hover:text-primary transition-colors" />
                                 </a>
